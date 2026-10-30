@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Campus Riddle Quest · SAMYAK-2026</title>
+<meta name="color-scheme" content="dark">
+<style>
+:root{box-sizing:border-box;--bg:#080b1a;--card:rgba(20,26,56,.72);--ink:#eef1ff;--mute:#9aa3d1;--a:#7c5cff;--b:#22d3ee;--ok:#34d399;--bad:#fb7185;--gold:#fbbf24;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+canvas#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0}
+main{position:relative;z-index:1;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;perspective:1200px}
+.card{width:min(560px,100%);background:var(--card);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:22px;padding:26px;box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 60px rgba(124,92,255,.25);transform-style:preserve-3d;transition:transform .15s ease-out}
+h1{margin:0 0 6px;font-size:1.7rem;background:linear-gradient(90deg,var(--b),var(--a));-webkit-background-clip:text;background-clip:text;color:transparent}
+p.sub{margin:0 0 18px;color:var(--mute)}
+input{width:100%;padding:13px 15px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35);color:var(--ink);font-size:1rem;outline:none}
+input:focus{border-color:var(--b)}
+button{cursor:pointer;border:0;border-radius:12px;padding:12px 18px;font-size:1rem;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--a),#4f46e5);transform:translateZ(20px);transition:filter .15s,transform .1s}
+button:hover{filter:brightness(1.15)}button:active{transform:scale(.97)}
+button.ghost{background:rgba(255,255,255,.1)}button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}.row>*{flex:1}
+.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:.9rem;color:var(--mute)}
+.pts{font-size:1.25rem;font-weight:700;color:var(--gold)}
+.prog{height:6px;background:rgba(255,255,255,.12);border-radius:9px;overflow:hidden;margin-bottom:16px}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--b),var(--a));transition:width .4s}
+.riddle{font-size:1.12rem;line-height:1.6;margin:6px 0 16px;transform:translateZ(30px)}
+.hint{margin-top:10px;padding:10px 13px;border-radius:10px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);color:#fde68a;font-size:.95rem}
+.msg{min-height:24px;margin-top:10px;font-weight:600}.ok{color:var(--ok)}.bad{color:var(--bad)}
+.shake{animation:sh .4s}@keyframes sh{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.95rem}
+td,th{padding:8px 6px;text-align:left;border-bottom:1px solid rgba(255,255,255,.1)}th{color:var(--mute);font-weight:600}
+.me{color:var(--b);font-weight:700}
+.win{text-align:center;font-size:1.3rem;margin:10px 0;color:var(--gold)}
+.big{font-size:2.6rem;text-align:center;margin:4px 0}
+.hide{display:none}
+.link{background:none;padding:6px;color:var(--mute);font-size:.85rem;text-decoration:underline;transform:none}
+</style></head>
+<body>
+<canvas id="bg"></canvas>
+<main><div class="card" id="card">
+
+<section id="s-start">
+<h1>Campus Riddle Quest</h1>
+<p class="sub">SAMYAK-2026 · 20 riddles · start with 200 points. +100 per correct answer, −25 per hint.</p>
+<input id="name" maxlength="24" placeholder="Enter your name" autocomplete="off">
+<div class="row"><button id="go">Start Playing</button></div>
+<div class="msg bad" id="nmsg"></div>
+<div id="lb0"></div>
+</section>
+
+<section id="s-play" class="hide">
+<div class="bar"><span id="who"></span><span>Points <span class="pts" id="pts">200</span></span></div>
+<div class="prog"><i id="pg"></i></div>
+<div class="bar"><span id="qn"></span><span id="solved"></span></div>
+<div class="riddle" id="rd"></div>
+<div id="hn"></div>
+<input id="ans" placeholder="Your answer" autocomplete="off">
+<div class="row"><button id="sub">Submit</button><button class="ghost" id="hint">Hint (−25)</button></div>
+<div class="msg" id="msg"></div>
+<button class="link" id="out">Switch player</button>
+</section>
+
+<section id="s-end" class="hide">
+<div class="big">🏆</div>
+<h1 style="text-align:center" id="fin"></h1>
+<div class="win" id="winner"></div>
+<div id="lb1"></div>
+<div class="row"><button id="again">Next Player</button></div>
+</section>
+
+</div></main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ---------- Riddles: [text, hint, [accepted answers]] ---------- */
+const Q=[
+["I wear no big signboard and I stay away from the busy roads of KL. Only people who know me come here to sip something and relax. My name says I am not easy to spot. Which cafe am I?","Two words: one means ‘not visible’, the other is a place for coffee.",["hiddencafe","klhiddencafe","hidden"]],
+["The campus stands in a village near Vijayawada, in the Guntur district. Millions know this village only because a university sits here. Its name has 11 letters and starts with V. What is the village?","Starts with V and ends with -swaram.",["vaddeswaram"]],
+["Classes end, the sun goes low, and feet from every department walk the same way. This place has no morning rush; the evening crowd is its crowd. A person’s name is on its board. Which canteen?","Named after a person. It is not the one with KL in front.",["satish","satishcanteen"]],
+["I have 64 squares and 32 pieces. Two armies take turns and never move at the same time. When the king has no escape, the game ends. What am I?","A board game of kings, queens, knights and pawns.",["chess"]],
+["A blacksmith bangs raw metal into shape. We bang raw ideas into projects. Our home is the ELGE department and we conduct tech events. Who are we?","Same name as a blacksmith’s workshop, plus ‘club’.",["forgeclub","forge"]],
+["Four letters stand behind our university’s official name: K for Koneru, L for Lakshmaiah, and the last two say what the organisation does and what it is. Which four-letter short form is it?","K L E F.",["klef","koneru"]],
+["I feed hungry students twice in a day, once when the day begins and once when the sun is overhead. The college initials are in my name and I am the biggest canteen. Which one am I?","Not Satish. Name has KL, ‘main’ and ‘canteen’.",["maincanteen","klmaincanteen"]],
+["Eleven players spread across my green grass while two batters stand in the middle. Today the main event of the day is set up on me, and big fests of our college have been held on me before. Which place am I?","Bat, ball and a pitch. I am today’s main venue.",["cricketground","cricket"]],
+["Three of us stand in a row with two small pieces lying on top. Bowlers want to hit us and batters protect us. A flying ball that knocks us down ends an innings for one player. What are we?","In cricket, three of us are called ‘stumps’.",["stumps","stump","wicket","wickets"]],
+["No roof and no walls, only a stage under the open sky. Dance and cultural mini-events happen here and the audience sits in the open air. Which place am I?","Three words, short form OAT.",["openairtheatre","oat"]],
+["On one special day, students dress in traditional outfits of different cultures, and the stage in the open air becomes a runway of tradition. What is this day called?","Two words. The first starts with E and is about culture and traditions.",["ethnicday","ethnic"]],
+["Students walk across a stage in long gowns to receive their degrees. Our university held its 15th one on 27 December 2025 and awarded degrees to more than 5,000 graduates. What is this ceremony called?","Starts with C. It is the graduation ceremony.",["convocation"]],
+["Ribbons will be cut here when our fest begins. I have a podium, a projector and rows of seats, and I am the newest hall for talks and events. Which hall am I?","Three words: ‘new’, a place for seminars and a hall.",["newseminarhall","seminarhall"]],
+["Shuttlecocks, carrom coins and table tennis balls all fly and roll under my one roof. No rain can stop a match here. Which place am I?","I am a complex. My first word means ‘inside’.",["indoorcomplex","indoor"]],
+["Our volunteers go to the village for awareness drives on clean roads, ending single-use plastic and money literacy. Their unit’s name has three letters and the middle word is ‘service’. What is this unit?","National Service Scheme. The short form is three letters.",["nss"]],
+["Our university’s main campus is in this district of Andhra Pradesh, which is also famous for red chillies. Name the district.","Starts with G. Vijayawada is near it.",["guntur"]],
+["On 24 March 2026, the Women’s Development Cell held one of India’s biggest inter-collegiate fests for girls. The name joins the first part of ‘feminine’ with a burst of light. What is the fest called?","Fem + Flare.",["femflare"]],
+["Every month a newsletter of our university tells the story of its fests, convocations and events in pictures. Its name means a wide view of a landscape. Which newsletter is it?","KL + a word for a wide view.",["klpanorama","panorama"]],
+["In September 2026, KL signed an MoU with HCL GUVI to launch the nation’s first campus built around this kind of AI. It does not just answer: it plans and acts on tasks by itself. What kind of AI is this?","It begins with the word ‘agent’.",["agenticai","agentic"]],
+["I am our grand fest, a national-level techno-management event. I run for two days, the 30th and 31st, and the singer Karthik will perform. I am inaugurated in the new seminar hall and the cricket ground is my main venue. The year 2026 is part of my name. What am I?","The fest name starts with S.",["samyak","samyak2026"]]
+];
+const N=Q.length,KEY="samyak_riddles_v2";
+
+/* ---------- Storage (safe) ---------- */
+let DB={players:{},current:null};
+function load(){try{const r=localStorage.getItem(KEY);if(r)DB=JSON.parse(r)}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}}
+const $=id=>document.getElementById(id);
+const norm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,"");
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const P=()=>DB.players[DB.current];
+
+function show(id){["s-start","s-play","s-end"].forEach(x=>$(x).classList.toggle("hide",x!==id))}
+
+function board(el){
+  const list=Object.values(DB.players).sort((a,b)=>b.score-a.score);
+  if(!list.length){$(el).innerHTML="";return}
+  $(el).innerHTML="<table><tr><th>#</th><th>Player</th><th>Points</th><th>Status</th></tr>"+
+  list.map((p,i)=>`<tr class="${p.name===DB.current?'me':''}"><td>${i+1}</td><td>${esc(p.name)}</td><td>${p.score}</td><td>${p.done?'Finished':p.idx+'/'+N}</td></tr>`).join("")+"</table>";
+}
+
+function start(){
+  const n=$("name").value.trim();
+  if(n.length<2){$("nmsg").textContent="Please enter your name (at least 2 characters).";return}
+  const k=n.toLowerCase();
+  if(!DB.players[k])DB.players[k]={name:n,score:200,idx:0,hints:{},done:false};
+  DB.current=k;save();render();
+}
+
+function render(){
+  const p=P();
+  if(!p){show("s-start");board("lb0");return}
+  if(p.done){finish();return}
+  show("s-play");
+  $("who").textContent="👤 "+p.name;$("pts").textContent=p.score;
+  $("qn").textContent=`Riddle ${p.idx+1} of ${N}`;
+  $("solved").textContent=`Solved ${p.idx}`;
+  $("pg").style.width=(p.idx/N*100)+"%";
+  $("rd").textContent=Q[p.idx][0];
+  $("hn").innerHTML=p.hints[p.idx]?`<div class="hint">💡 ${esc(Q[p.idx][1])}</div>`:"";
+  $("hint").disabled=!!p.hints[p.idx];
+  $("ans").value="";$("msg").textContent="";$("msg").className="msg";
+}
+
+function submit(){
+  const p=P(),v=norm($("ans").value);if(v.length<3)return;
+  const ok=Q[p.idx][2].some(a=>a.length<=4?v===a:v.includes(a));
+  const m=$("msg");
+  if(ok){
+    p.score+=100;p.idx++;if(p.idx>=N)p.done=true;
+    save();m.className="msg ok";m.textContent="Correct! +100 points";$("pts").textContent=p.score;
+    setTimeout(render,650);
+  }else{
+    m.className="msg bad";m.textContent="Not quite. Think again.";
+    const c=$("card");c.classList.remove("shake");void c.offsetWidth;c.classList.add("shake");
+  }
+}
+
+function hint(){
+  const p=P();if(p.hints[p.idx])return;
+  p.hints[p.idx]=1;p.score=Math.max(0,p.score-25);save();render();
+}
+
+function finish(){
+  show("s-end");
+  const p=P();
+  $("fin").textContent=`${p.name}, you finished with ${p.score} points!`;
+  const done=Object.values(DB.players).filter(x=>x.done).sort((a,b)=>b.score-a.score);
+  const top=done[0];
+  $("winner").textContent=top?`👑 Current winner: ${top.name} (${top.score} pts)`:"";
+  board("lb1");
+}
+
+$("go").onclick=start;
+$("name").onkeydown=e=>{if(e.key==="Enter")start()};
+$("sub").onclick=submit;
+$("ans").onkeydown=e=>{if(e.key==="Enter")submit()};
+$("hint").onclick=hint;
+$("out").onclick=()=>{DB.current=null;save();render()};
+$("again").onclick=()=>{DB.current=null;save();$("name").value="";render()};
+
+/* ---------- 3D card tilt ---------- */
+const card=$("card");
+document.addEventListener("pointermove",e=>{
+  const x=(e.clientX/innerWidth-.5),y=(e.clientY/innerHeight-.5);
+  card.style.transform=`rotateY(${x*10}deg) rotateX(${-y*10}deg)`;
+});
+
+/* ---------- Three.js background ---------- */
+try{
+  const cv=$("bg"),r=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+  const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(60,1,.1,100);cam.position.z=9;
+  const shapes=[];
+  [[new THREE.IcosahedronGeometry(2,0),0x7c5cff,-4,1],[new THREE.TorusKnotGeometry(1,.3,80,12),0x22d3ee,4.5,-1.5],[new THREE.OctahedronGeometry(1.2),0xfbbf24,-5,-3],[new THREE.TorusGeometry(1.3,.35,12,40),0x34d399,5,3]].forEach(([g,c,x,y])=>{
+    const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:c,wireframe:true,transparent:true,opacity:.55}));
+    m.position.set(x,y,-2);sc.add(m);shapes.push(m)});
+  const pg=new THREE.BufferGeometry(),pos=[];
+  for(let i=0;i<500;i++)pos.push((Math.random()-.5)*40,(Math.random()-.5)*28,(Math.random()-.5)*30);
+  pg.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
+  const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0xaab4ff,size:.06}));sc.add(pts);
+  function rs(){r.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+  rs();addEventListener("resize",rs);
+  let mx=0,my=0;addEventListener("pointermove",e=>{mx=e.clientX/innerWidth-.5;my=e.clientY/innerHeight-.5});
+  (function loop(){requestAnimationFrame(loop);
+    shapes.forEach((s,i)=>{s.rotation.x+=.003*(i+1);s.rotation.y+=.004});
+    pts.rotation.y+=.0006;
+    cam.position.x+=(mx*3-cam.position.x)*.04;cam.position.y+=(-my*2-cam.position.y)*.04;cam.lookAt(0,0,0);
+    r.render(sc,cam)})();
+}catch(e){}
+
+load();render();
+</script>
+</body></html>
